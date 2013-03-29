@@ -87,7 +87,7 @@ class Toml {
     {
         $value = trim($value);
 
-        if (empty($value)) return null;
+        if ($value === "") throw new \UnexpectedValueException("Value cannot be empty on line ".$this->currentLinenumber);
 
         // Parse bools
         if ($value === 'true' || $value === 'false') {
