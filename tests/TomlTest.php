@@ -150,6 +150,12 @@ class TomlTest extends PHPUnit_Framework_TestCase
         $p = Toml::parse("test = [\n1,\n2 # test\n]");
         $this->assertEquals(array('test' => array(1, 2)), $p);
     }
+    
+    public function testZeroInt()
+    {
+        $p = Toml::parseFile('test = 0');
+        $this->assertEquals(0, $p['test']);
+    }
 
     /**
     * @expectedException Exception
@@ -197,5 +203,13 @@ class TomlTest extends PHPUnit_Framework_TestCase
     public function testInvalidFile()
     {
         $p = Toml::parseFile('notfound.toml');
+    }
+    
+    /**
+    * @expectedException UnexpectedValueException
+    */
+    public function testNullNotAllowed()
+    {
+        $p = Toml::parse("test =");
     }
 }
