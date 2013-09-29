@@ -5,8 +5,24 @@ class Toml {
     private $in;
     private $out;
 
-    private $currentGroup;
-    private $currentLinenumber = 1;
+    private $cursor;
+    private $key;
+
+    private $row = 1;
+    private $col  = 0;
+
+    private $lastParsedType = null;
+    const String   = 6;
+    const Integer  = 1;
+    const Float    = 2;
+    const Datetime = 3;
+    const Table    = 4;
+    const Boolean  = 5;
+
+    private $lineEnd = false;
+
+    private $tables      = array();
+    private $tableArrays = array();
 
     public static function parse ($input)
     {
@@ -28,146 +44,431 @@ class Toml {
 
     private function __construct ($input)
     {
-        // Splitting at the last \n before '=', '[' or # 
-        $this->in = preg_split('/\r\n|\r|\n(?=\s*\w+\s*=|\[|\n|#.*)/s', $input);
-        $this->currentGroup = &$this->out;
+        // Splitting at the last \n before the next '=', '[' or # 
+        $this->in = preg_split('/\r\n|\r|\n(?=\s*[a-zA-Z0-9_?]+\s*=|\s*\[|\n|#.*)/s', $input);
+        $this->cursor = &$this->out;
 
         foreach ($this->in as &$row)
         {
-            $this->parseLine($row);
-            $this->currentLinenumber += (1 + substr_count($row, "\n"));
+        	$this->lineEnd        = false;
+        	$this->lastParsedType = null;
+
+        	$line = trim($row);
+
+	    	echo $this->row." : ".$line."\n";
+
+            $this->parseLine($line."\n");
+   			$this->parseEnd($line);
+
+            $this->row += (1 + substr_count($row, "\n"));
+            $this->col = 0;
         }
     }
 
-    private function parseLine (&$row)
+
+    private function parseLine ($line)
     {
-        // Removing comments
-        $line = preg_replace('/#(?=(?:(?:[^"]*+"){2})*+[^"]*+\z).*/', '', $row);
-        $line = trim($line);
+    	$c = $line[$this->col];
 
-        if (empty($line)) {
-            // An empty line will leave the current key group
-            $this->currentGroup = &$this->out;
-            return;
-        }
+    	switch ($c) {
+    		case "\n":
+		    	# leave current table when encountering empty line
+    			$this->cursor = &$this->out;
 
-        $row = $line;
+    		case "#":
+    			# don't do anything if it's a comment line
+    			$this->lineEnd = true;
+    			return;
 
-        // Parse data
-        if (preg_match('/^(\S+)\s*=\s*(.*)$/s', $row, $match))
-        {
-            if (isset($this->currentGroup[$match[1]])) {
-                throw new \Exception("Duplicate entry found for '".$row."' on line ".$this->currentLinenumber.".");
-                return;
-            }
+    		case "[":
+    			# it's a table.
+    			if ($line[($this->col+1)] == '[')
+    			{
+    				# table array
+    				$this->createTableArray($line);
+    			}
+    			else
+    			{
+    				# regular table
+    				$this->createTable($line);
+    			}
 
-            $this->currentGroup[$match[1]] = $this->parseValue($match[2]);
-            return;
-        }
+    			break;
+    		
+    		default:
+    			# it's a key.
+				if (preg_match('/^[a-zA-Z0-9_?]+/', $line))
+				{
+					$this->createKey($line);
+				}
 
-        // Create key group
-        if (preg_match('/^\[([^\]]+)\]$/s', $line, $matches))
-        {
-            $m = explode('.', $matches[1]);
-            $group = &$this->out[$m[0]];
+    			break;
+    	}
 
-            for ($i=1; $i<count($m); $i++)
-            {
-                $group = &$group[$m[$i]];
-            }
-
-            $this->currentGroup = &$group;
-            return;
-        }
-
-        throw new \UnexpectedValueException("Invalid TOML syntax '".$row."' on line ".$this->currentLinenumber.".");
     }
 
-    private function parseValue ($value)
+    private function parseEnd ($line)
     {
-        $value = trim($value);
+    	if (!$this->lineEnd) throw new \Exception("Unkown TOML parsing error on line ".$this->row.", column ".$this->col.".");
+    	if (empty($line)) return;
 
-        if ($value === "") throw new \UnexpectedValueException("Value cannot be empty on line ".$this->currentLinenumber);
+    	$lastNewline = 0;
 
-        // Parse bools
-        if ($value === 'true' || $value === 'false') {
-            return $value === 'true';
-        }
+	   	while ($this->col < strlen($line))
+  	 	{
+  	 		$c = $line[$this->col];
 
-        // Parse floats
-        if (preg_match('/^\-?\d*?\.\d+$/', $value)) {
-            return (float) $value;
-        }
+  	 		if ($c == '#') {
+  	 			return;
+  	 		} else if ($c == "\n") {
+  	 			$this->row++;
+  	 			$lastNewline = $this->col+1;
+  	 		} else if ($c != ' ' && $c != "\t") {
+  	 			throw new \UnexpectedValueException("Invalid TOML syntax '".substr($line, $lastNewline)."' on line ".$this->row.".");
+  	 		}
 
-        // Parse integers
-        if (preg_match('/^\-?\d*?$/', $value)) {
-            return (int) $value;
-        }
-
-        // Parse datetime
-        if (strtotime($value)) {
-            return $date = new \Datetime($value);
-        }
-
-        // Parse string
-        if (preg_match('/^"(.*)"$/u', $value, $match)) {
-            return $this->parseString($match[1]);
-        }
-
-        // Parse arrays
-        if (preg_match('/^\[(.*)\]$/s', $value, $match)) {
-            return $this->parseArray($match[1]);
-        }
-
-        throw new \UnexpectedValueException("Data type '".$value."' not recognized on line ".$this->currentLinenumber.".");
+  	 		$this->col++;
+    	}    	
     }
 
 
-    private function parseArray ($arr)
+    private function createKey ($line)
     {
-        if (preg_match_all('/(?<=\[)[^\]]+(?=\])/s', $arr, $m)) {
-            // Match nested Arrays
-            $values = $m[0];
-        } else {
-            // We couldn't find any, so we assume it's a regular flat Array
-            $values = preg_split('/,(?=(?:(?:[^"]*+"){2})*+[^"]*+\z)/s', $arr);
-        }
+    	$key = null;
 
-        // If the $values Array is not greater than 2, $arr is a single value,
-        // so we parse and return it to break the recursion
-        if (count($values) <= 1) return $this->parseValue($arr);
+	   	while ($this->col < strlen($line))
+  	 	{
+	    	$c = $line[$this->col];
 
-        $prevType = '';
+  	 		if ($c == '=') break;
 
-        // Iterate through nested Arrays...
-        foreach ($values as &$sub)
-        {
-            // ... and parse them for more nested Arrays
-            $sub = $this->parseArray($sub);
+    		$key .= $c;
 
-            // Don't allow mixing of data types in an Array
-            if (empty($prevType) || $sub == null) {
-                $prevType = gettype($sub);
-            } else if ($prevType != gettype($sub)) {
-                throw new \UnexpectedValueException("Mixing data types in an array is stupid.\n".var_export($values, true)." on line ".$this->currentLinenumber.".");
-            }
-        }
+	    	$this->col++;
+    	}
 
-        // Remove empty Array values
-        return array_filter($values);
+    	$key = trim($key);
+
+    	if (isset($this->cursor[$key])) throw new \Exception("Invalid TOML syntax on line ".$this->row.". Key '".$key."' already exists.");
+
+    	$this->cursor[$key] = null;
+    	$this->key          = $key;
+
+    	$this->parseValue($line);
     }
 
-    private function parseString ($string)
+    private function parseValue ($line)
     {
-        return strtr($string, array(
-            '\\0'  => "\0",
-            '\\t'  => "\t",
-            '\\n'  => "\n",
-            '\\r'  => "\r",
-            '\\"'  => '"',
-            '\\\\' => '\\',
-        ));
+    	if ($line[$this->col] == '=')
+    	{
+    		# skip whitespace
+    		while (($c = $line[++$this->col]) == ' ');
+
+    		switch ($c) {
+    			case '"':
+    				# it's a string
+    				$this->cursor[$this->key] = $this->parseString($line);
+    				break;
+
+    			case '[':
+    				# it's an array
+    				$this->cursor[$this->key] = $this->parseArray($line);
+    				break;
+    			
+    			default:
+    				# it's some other primitive data
+    				$this->cursor[$this->key] = $this->parseData($line);
+    				break;
+    		}
+    	}
+    	else
+    	{
+			throw new \Exception("Invalid TOML syntax on line ".$this->row.".");
+    	}
     }
 
-    private function __clone() {}
+
+    private function parseString ($line)
+    {
+    	$string = null;
+
+    	while (++$this->col < strlen($line))
+    	{
+    		$c = $line[$this->col];
+
+			if ($c == '\\')
+			{
+		    	$c = $line[++$this->col];
+
+				if ($c == 'b') {
+					$string .= mb_convert_encoding(pack('H*', '0008'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == 't') {
+					$string .= mb_convert_encoding(pack('H*', '0009'), 'UTF-8', 'UCS-2BE');    			
+				} else if ($c == 'n') {
+					$string .= mb_convert_encoding(pack('H*', '000A'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == 'f') {
+					$string .= mb_convert_encoding(pack('H*', '000C'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == 'r') {
+					$string .= mb_convert_encoding(pack('H*', '000D'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == '"') {
+					$string .= mb_convert_encoding(pack('H*', '0022'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == '/') {
+					$string .= mb_convert_encoding(pack('H*', '002F'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == '\\') {
+					$string .= mb_convert_encoding(pack('H*', '005C'), 'UTF-8', 'UCS-2BE');
+				} else if ($c == 'u')
+				{
+			    	$code = null;
+
+			    	for ($j=$this->col; $j<($this->col+5); $j++)
+			    	{
+			    		$code .= $line[$j];
+			    	}
+
+			    	# move cursor ahead in current line
+			    	$this->col = $j-1;
+
+			    	if (preg_match('/\\\\u([0-9a-f]{4})/i', '\\'.$code, $match)) {
+						$string .= mb_convert_encoding(pack('H*', $match[1]), 'UTF-8', 'UCS-2BE');
+					} else {
+						throw new \Exception("Unrecognized Unicode sequence '$code' on line ".$this->currentLine." near column ".($this->currentCol+1).".");
+					}
+				}
+			}
+			else if ($c == '"')
+			{
+				$this->col++;
+
+				$this->lineEnd        = true;
+				$this->lastParsedType = Toml::String;
+
+				return $string;
+			}
+			else
+			{
+				$string .= $c;
+			}
+    	}
+    }
+
+
+    private function parseArray ($line, $lvl=0)
+    {
+    	$array = array();
+
+    	$end = $lvl;
+		$lvl++;
+		$this->col++;
+
+		$prevType = null;
+    	$comment  = false;
+
+		while ($lvl > $end && $this->col < strlen($line))
+		{
+			$c = $line[$this->col];
+
+			if ($comment && $c != "\n") {
+				$this->col++;
+				continue; 
+			}
+
+			if ($this->lineEnd && $c != ',' && $c != ' ' && $c != "\n" && $c != ']') throw new \Exception("Invalid TOML syntax. Could not recognize array format on line ".$this->row.", column ".$this->col.".");
+
+       		switch ($c) {
+    			case '"':
+    				# it's a string
+    				$array[] = $this->parseString($line);
+    				$this->col--;
+    				break;
+
+    			case '[':
+    				# it's an array
+	   				$array[] = $this->parseArray($line, $lvl);
+    				break;
+
+    			case ']':
+    				$lvl--;
+    				break;
+
+    			case ',':
+    				$this->lineEnd = false;
+    				break;
+
+    			case "\n":
+    				if ($comment) $comment = false;
+    			case "\t":
+    			case " ":
+    				break;
+
+    			case '#':
+    				$comment = true;
+    				break;
+
+    			default:
+    				# it's some other primitive data
+    				$array[] = $this->parseData($line, array(',', ' ', ']'));
+    				$this->col--;
+    				break;
+    		}
+
+    		if ($prevType == null) {
+				$prevType = $this->lastParsedType;
+    		} else if ($prevType != null && $prevType != $this->lastParsedType) {
+    			throw new \UnexpectedValueException("Mixing data types in an array is stupid.\n".var_export($array, true)." on line ".$this->row.".");
+    		}
+
+			$this->col++;
+    	}
+
+
+    	if ($lvl != $end) throw new \Exception("Invalid TOML syntax. Could not recognize array format on line ".$this->row.". Did you forget some closing brackets?");
+
+    	if ($lvl == 0) {
+    		$this->lineEnd = true;
+		} else {
+			$this->lineEnd = false;
+		}
+
+		$this->lastParsedType = Toml::Table;
+
+    	return $array;
+    }
+
+
+    private function parseData ($line, $lineEndMarker=array(' '))
+    {
+    	$data  = null;
+		$c = $line[$this->col];
+
+		while (in_array($c, $lineEndMarker) === false)
+		{
+			if ($c == "\n") break;
+	    	$data .= $c;
+
+			$c = $line[++$this->col];
+		}
+
+        if ($data === "") throw new \UnexpectedValueException("Invalid TOML syntax. Empty key on line ".$this->row.".");
+
+        $this->lineEnd = true;
+
+        # parse bools
+        if ($data === 'true' || $data === 'false') {
+			$this->lastParsedType = Toml::Boolean;
+            return $data === 'true';
+        }
+
+        # parse floats
+        if (preg_match('/^\-?\d*?\.\d+$/', $data)) {
+			$this->lastParsedType = Toml::Float;
+            return (float) $data;
+        }
+
+        # parse integers
+        if (preg_match('/^\-?\d*?$/', $data)) {
+			$this->lastParsedType = Toml::Integer;
+            return (int) $data;
+        }
+
+        # parse datetime
+        if (strtotime($data)) {
+			$this->lastParsedType = Toml::Datetime;
+            return new \Datetime($data);
+        }
+
+        $this->lineEnd = false;
+
+		throw new \Exception("Unrecognized data type '$data' on line ".$this->row." near column ".($this->col+1).".");		
+    }
+
+
+    private function createTable ($line)
+    {
+    	$table = &$this->out;
+    	$name  = null;
+    	$tableid = null;
+
+	   	while ($this->col < strlen($line))
+  	 	{
+	    	$c = $line[$this->col];
+
+    		if ($c == '.') {
+    			$tableid .= $name.'.';
+
+		    	if (isset($table[$name]) && !is_array($table[$name])) throw new \Exception("TOML parsing error on line ".$this->row.". Table [".$tableid."] already defined as key.");
+    	
+    			$table = &$table[$name];
+    			$name = '';
+    		} else if ($c == ']') {
+    			$this->lineEnd = true;
+    			break;
+    		} else if ($c != '[') {
+	    		$name .= $c;
+	    	}
+
+	    	$this->col++;
+    	}
+
+    	$tableid .= $name;
+
+    	if (isset($this->tables[$tableid])) throw new \Exception("TOML parsing error on line ".$this->row.". Table [".$tableid."] already defined on line ".$this->tables[$tableid].".");
+    	if (isset($table[$name]) && !is_array($table[$name])) throw new \Exception("TOML parsing error on line ".$this->row.". Table [".$tableid."] already defined as key.");
+
+		$table                  = &$table[$name];
+		$this->cursor           = &$table;
+		$this->tables[$tableid] = $this->row;
+
+    	$this->col++;
+    }
+
+    private function createTableArray ($line)
+    {
+    	if (preg_match('/^\[\[([^\s]+\])\].*$/', $line, $match))
+    	{
+    		$line = $match[1];
+	    	$table = &$this->out;
+	    	$name  = null;
+	    	$tableid = null;
+
+		   	while ($this->col < strlen($line))
+	  	 	{
+		    	$c = $line[$this->col++];
+
+	    		if ($c == '.') {
+	    			$tableid .= $name.'.';
+
+			    	if (isset($table[$name]) && !is_array($table[$name])) throw new \Exception("TOML parsing error on line ".$this->row.". Table [".$tableid."] already defined as key.");
+
+			    	if (isset($this->tableArrays[$name])) {
+			    		$table = &$this->tableArrays[$name];
+			    	} else {
+		    			$table = &$table[$name];
+		    		}
+
+	    			$name = '';
+	    		} else if ($c == ']') {
+	    			$this->lineEnd = true;
+	    			break;
+	    		} else {
+		    		$name .= $c;
+		    	}
+	    	}
+
+	    	$tableid .= $name;
+
+			$table                       = &$table[$name];
+			$this->cursor                = &$table[];
+
+			$this->tables[$tableid]      = $this->row;
+			$this->tableArrays[$tableid] = &$this->cursor;
+
+	    	$this->col += 4; // +4 because we need to skip the two opening [[ und closing ]] brackets
+	    }
+    	else
+    	{
+    		throw new \Exception("Invalid TOML syntax. Could not recognize table format on line ".$this->row.".");
+    	}
+    }
+	
+	private function __clone() {}
 }

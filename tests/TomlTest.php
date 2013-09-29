@@ -26,6 +26,12 @@ class TomlTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('192.168.1.1', $p['database']['server']);
     }
 
+    public function testParseFile3()
+    {
+        $p = Toml::parseFile('tests/hard_example.toml');
+        $this->assertEquals("You'll hate me after this - #", $p['the']['test_string']);
+    }
+
     public function testParseArray()
     {
         $p = Toml::parse('test = [12, 23, 45]');
