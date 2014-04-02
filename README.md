@@ -1,6 +1,6 @@
 # TOML for PHP
 
-Parsing [TOML](https://github.com/mojombo/toml) with PHP. Supports TOML Specs up to [6303a80](https://github.com/mojombo/toml/tree/6303a809242307e9591ea26e8cd1ee87fef4ce45).
+Parsing [TOML](https://github.com/mojombo/toml) with PHP. Supports TOML Specs [0.2.0](https://github.com/mojombo/toml/blob/master/versions/toml-v0.2.0.md).
 
 # Installation
 
@@ -12,7 +12,7 @@ Use [Composer](http://getcomposer.org) and add this to your `composer.json`:
     }
 
 ## Manual Download
-If you want you can just download/clone the source code from GitHub as well. Just include the `src/Toml.php` file in your application and you should be good to go.
+If you want you can just download/clone the source code from GitHub as well. Just include the `src/Toml/Toml.php` file in your application and you should be good to go.
 
 # Usage
 
@@ -26,4 +26,9 @@ To parse a TOML file you can use:
 
 # Tests
 
-Unit tests are included, so run `phpunit` to see for yourself.
+Tests are done using [PHPUnit](http://phpunit.de/) and [Composer](http://getcomposer.org)'s autoloader (`vendor/autoload.php` is bootstrapped by *phpunit* to include the TOML parser class to be tested):
+
+```
+composer install
+phpunit
+```
