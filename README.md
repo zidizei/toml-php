@@ -8,7 +8,7 @@ Parsing [TOML](https://github.com/mojombo/toml) with PHP. Supports TOML Specs [0
 Use [Composer](http://getcomposer.org) and add this to your `composer.json`:
 
     "require": {
-        "zidizei/toml-php", "dev-master"
+        "zidizei/toml-php", "~0.2.0"
     }
 
 ## Manual Download
