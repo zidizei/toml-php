@@ -1,6 +1,8 @@
 <?php
+namespace Toml;
 
-class TomlTestComments extends PHPUnit_Framework_TestCase {
+class TomlTestComments extends \PHPUnit_Framework_TestCase
+{
 
     public function testComments()
     {
@@ -25,5 +27,4 @@ class TomlTestComments extends PHPUnit_Framework_TestCase {
         $p = Toml::parse("test = [\n1,\n2 # test\n]");
         $this->assertEquals(array('test' => array(1, 2)), $p);
     }
-
 }

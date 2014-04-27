@@ -1,6 +1,8 @@
 <?php
+namespace Toml;
 
-class TomlStringTest extends PHPUnit_Framework_TestCase {
+class TomlStringTest extends \PHPUnit_Framework_TestCase
+{
 
     public function testParseString()
     {
@@ -13,5 +15,4 @@ class TomlStringTest extends PHPUnit_Framework_TestCase {
         $p = Toml::parse('title = "TOML\nexample"');
         $this->assertEquals(array('title' => "TOML\nexample"), $p);
     }
-
 }

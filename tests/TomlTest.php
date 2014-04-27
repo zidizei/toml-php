@@ -1,7 +1,8 @@
 <?php
+namespace Toml;
 
-class TomlTest extends PHPUnit_Framework_TestCase {
-
+class TomlTest extends \PHPUnit_Framework_TestCase
+{
     public function testParseFile1()
     {
         $p = Toml::parseFile('tests/examples/example.toml');

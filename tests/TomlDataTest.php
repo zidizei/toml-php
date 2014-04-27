@@ -1,7 +1,8 @@
 <?php
+namespace Toml;
 
-class TomlDataTest extends PHPUnit_Framework_TestCase {
-
+class TomlDataTest extends \PHPUnit_Framework_TestCase
+{
     public function testParseInt()
     {
         $p = Toml::parse('test = 42');
@@ -31,5 +32,4 @@ class TomlDataTest extends PHPUnit_Framework_TestCase {
         $p = Toml::parse('test = 0');
         $this->assertEquals(0, $p['test']);
     }
-
 }

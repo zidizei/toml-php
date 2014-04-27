@@ -1,7 +1,8 @@
 <?php
+namespace Toml;
 
-class TomlTableTest extends PHPUnit_Framework_TestCase {
-
+class TomlTableTest extends \PHPUnit_Framework_TestCase
+{
     public function testTable()
     {
         $p = Toml::parse("[test]\nalpha = 1\nbeta = 2");
@@ -25,5 +26,4 @@ class TomlTableTest extends PHPUnit_Framework_TestCase {
         $p = Toml::parse("[test.alpha]");
         $this->assertEquals(array('test' => array('alpha' => null)), $p);
     }
-
 }
