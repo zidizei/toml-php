@@ -16,6 +16,9 @@
 	"autoload": {
 		"psr-0": {
 			"Toml": "src"
-		}
+		},
+		"files": [
+			"src/Toml/helper.php"
+		]
 	}
 }

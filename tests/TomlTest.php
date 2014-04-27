@@ -5,19 +5,19 @@ class TomlTest extends \PHPUnit_Framework_TestCase
 {
     public function testParseFile1()
     {
-        $p = Toml::parseFile('tests/examples/example.toml');
+        $p = parse('tests/examples/example.toml');
         $this->assertEquals('TOML Example', $p['title']);
     }
 
     public function testParseFile2()
     {
-        $p = Toml::parseFile('tests/examples/example.toml');
+        $p = parse('tests/examples/example.toml');
         $this->assertEquals('192.168.1.1', $p['database']['server']);
     }
 
     public function testParseFile3()
     {
-        $p = Toml::parseFile('tests/examples/hard_example.toml');
+        $p = parse('tests/examples/hard_example.toml');
         $this->assertEquals("You'll hate me after this - #", $p['the']['test_string']);
     }
 
@@ -26,7 +26,7 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testAvoidDuplicates()
     {
-        $p = Toml::parse("test = 12\ntest = 24");
+        $p = parse("test = 12\ntest = 24");
     }
 
     /**
@@ -34,7 +34,7 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testAvoidMixedTypeArrays()
     {
-        $p = Toml::parse('test = [1, "gamme"]');
+        $p = parse('test = [1, "gamme"]');
     }
 
     /**
@@ -42,7 +42,7 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testUnkownDatatype()
     {
-        $p = Toml::parse("test = unknown");
+        $p = parse("test = unknown");
     }
 
     /**
@@ -50,7 +50,7 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testInvalidSyntax()
     {
-        $p = Toml::parse("test unknown");
+        $p = parse("test unknown");
     }
 
     /**
@@ -58,7 +58,7 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testInvalidSyntax2()
     {
-        $p = Toml::parse("[test] invalid");
+        $p = parse("[test] invalid");
     }
 
     /**
@@ -66,7 +66,15 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testInvalidFile()
     {
-        $p = Toml::parseFile('notfound.toml');
+        $p = parse('notfound.toml');
+    }
+
+    /**
+    * @expectedException InvalidArgumentException
+    */
+    public function testInvalidArgument()
+    {
+        $p = parse(0);
     }
 
     /**
@@ -74,6 +82,6 @@ class TomlTest extends \PHPUnit_Framework_TestCase
     */
     public function testNullNotAllowed()
     {
-        $p = Toml::parse("test =");
+        $p = parse("test =");
     }
 }

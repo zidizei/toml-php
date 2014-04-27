@@ -16,13 +16,13 @@ If you want you can just download/clone the source code from GitHub as well. Jus
 
 # Usage
 
-There are two static functions available to parse your TOML. The following will parse a TOML-formatted string:
+The following will parse a TOML formatted String:
 
-    $array = Toml::parse('title = "TOML Example"');
+    $array = \Toml\parse('title = "TOML Example"');
 
-To parse a TOML file you can use:
+To parse a TOML file, you can just use the same helper function:
 
-    $array = Toml::parseFile('tests/example.toml');
+    $array = \Toml\parse('tests/example.toml');
 
 # Tests
 
