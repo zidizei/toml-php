@@ -98,6 +98,18 @@ class TomlDataTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals(array('test' => new \Datetime('1979-05-27T07:32:00Z')), $p);
     }
 
+    public function testParseDate2()
+    {
+        $p = Toml::parse('test = 1979-05-27T00:32:00-07:00');
+        $this->assertEquals(array('test' => new \Datetime('1979-05-27T00:32:00-07:00')), $p);
+    }
+
+    public function testParseDate3()
+    {
+        $p = Toml::parse('test = 1979-05-27T00:32:00.999999-07:00');
+        $this->assertEquals(array('test' => new \Datetime('1979-05-27T00:32:00.999999-07:00')), $p);
+    }
+
     public function testZeroInt()
     {
         $p = Toml::parse('test = 0');

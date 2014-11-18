@@ -314,7 +314,7 @@ class Toml
 
         // parse datetime
 
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/', $data)) {
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d*)?(Z|-(\d{2}):(\d{2}))$/', $data)) {
             $this->lastParsedType = Toml::DATETIME;
 
             try {
