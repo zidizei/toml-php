@@ -253,14 +253,14 @@ class Toml
                 $this->lastParsedType = Toml::STRING;
 
                 return $string;
-            } elseif ($c == "\n") {
-                throw new \Exception("TOML parsing error on line ".$this->row.". Strings must be contained on a single line.");
             } else {
                 // Build String
 
                 $string .= $c;
             }
         }
+
+        throw new \Exception("TOML parsing error on line ".$this->row.". Missing closing String delimiter.");
     }
 
     private function parseData()

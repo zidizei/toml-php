@@ -12,8 +12,9 @@ class TomlStringTest extends \PHPUnit_Framework_TestCase
 
     public function testParseMultiLineString()
     {
-        $p = Toml::parse('title = "TOML\nexample"');
-        $this->assertEquals(array('title' => "TOML\nexample"), $p);
+        $this->setExpectedException('Exception');
+        $p = Toml::parse('title = "TOML
+        example"');
     }
 
     public function testLiteralString()
