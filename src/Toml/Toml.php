@@ -296,19 +296,19 @@ class Toml
         }
         else
 
-        // parse floats
+        // parse integers
 
-        if (preg_match('/^\-?\d*?\.\d+$/', $data)) {
-            $this->lastParsedType = Toml::FLOAT;
-            $parsed = (float) $data;
+        if (preg_match('/^[-+]?\d*?$/', $data)) {
+            $this->lastParsedType = Toml::INTEGER;
+            $parsed = (int) $data;
         }
         else
 
-        // parse integers
+        // parse floats
 
-        if (preg_match('/^\-?\d*?$/', $data)) {
-            $this->lastParsedType = Toml::INTEGER;
-            $parsed = (int) $data;
+        if (preg_match('/^[-+]?\d*?(\.\d+)?([eE][+-]?\d+)?$/', $data)) {
+            $this->lastParsedType = Toml::FLOAT;
+            $parsed = (float) $data;
         }
         else
 
