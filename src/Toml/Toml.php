@@ -128,6 +128,11 @@ class Toml
                     $data = $this->parseString();
                     break;
 
+                case "'":
+
+                    $data = $this->parseString(true);
+                    break;
+
                 case '[':
 
                     # remember the "parent" references for later
@@ -195,7 +200,7 @@ class Toml
     }
 
 
-    private function parseString()
+    private function parseString($isLiteral = false)
     {
         $line   = $this->line;
         $string = null;
@@ -203,7 +208,7 @@ class Toml
         while (1+$this->col < $this->lineLength) {
             $c = $line[++$this->col];
 
-            if ($c == '\\') {
+            if ($c == '\\' && !$isLiteral) {
                 // Escaped character
 
                 $c = $line[++$this->col];
@@ -242,7 +247,7 @@ class Toml
                         throw new \Exception("Unrecognized Unicode sequence '$code' on line ".$this->currentLine." near column ".($this->currentCol+1).".");
                     }
                 }
-            } elseif ($c == '"') {
+            } elseif (($c == '"' && !$isLiteral) || ($c == "'" && $isLiteral)) {
                 // End of String
 
                 $this->lastParsedType = Toml::STRING;
